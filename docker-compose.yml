@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: luminalib-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: luminalib_user
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: luminalib
+    ports:
+      - "5432:5432"
+    volumes:
+      - luminalib_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U luminalib_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  luminalib_postgres_data:
