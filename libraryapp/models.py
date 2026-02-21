@@ -78,9 +78,9 @@ class Borrow(models.Model):
                 name="unique_active_borrow_per_user_book"
             ),
             models.CheckConstraint(
-                check=Q(expires_at__gt=F("borrowed_at")),
-                name="expires_after_borrowed"
-            ),
+            condition=Q(expires_at__gt=F("borrowed_at")),
+            name="expires_after_borrowed"
+        ),
         ]
 
 class Review(models.Model):
@@ -114,5 +114,9 @@ class Review(models.Model):
             models.UniqueConstraint(
                 fields=["user", "book"],
                 name="unique_review_per_user_per_book"
-            )
+            ),
+            models.CheckConstraint(
+            condition=Q(rating__gte=1) & Q(rating__lte=5),
+            name="rating_between_1_and_5"
+        ),
         ]

@@ -1,6 +1,14 @@
 from django.urls import path
 
-from .views import BookUploadView, BookListView, BookDetailView, BookUpdateView, BookDeleteView
+from .views import (
+    BookUploadView, 
+    BookListView, 
+    BookDetailView, 
+    BookUpdateView, 
+    BookDeleteView, 
+    BorrowCreateView,
+    ReviewCreateView
+)
 
 app_name = 'libraryapp'
 urlpatterns = [
@@ -9,4 +17,6 @@ urlpatterns = [
     path("books/<uuid:id>/", BookDetailView.as_view(), name="book-detail"),
     path("books/<uuid:id>/update/", BookUpdateView.as_view(), name="book-update"),
     path("books/<uuid:id>/delete/", BookDeleteView.as_view(), name="book-delete"),
+    path("books/<uuid:id>/borrow/", BorrowCreateView.as_view(), name="book-borrow"),
+    path("books/<uuid:id>/review/", ReviewCreateView.as_view(), name="book-review"),
 ]

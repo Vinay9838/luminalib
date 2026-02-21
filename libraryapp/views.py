@@ -6,12 +6,21 @@ from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 
 from libraryapp.models import Book
-from libraryapp.serializers import BookUploadSerializer, BookListSerializer, BookDetailSerializer, BookUpdateSerializer
-from libraryapp.services import BookService
-from libraryapp.tasks import generate_book_summary_task
+from libraryapp.serializers import (
+    BookUploadSerializer, 
+    BookListSerializer, 
+    BookDetailSerializer, 
+    BookUpdateSerializer,
+    BorrowSerializer,
+    ReviewCreateSerializer
+)
+from libraryapp.services import BookService, BorrowService, ReviewService
+from libraryapp.tasks import generate_book_summary_task, generate_review_sentiment_task
 
 
 class BookUploadView(APIView):
@@ -172,3 +181,81 @@ class BookDeleteView(APIView):
         book.save(update_fields=["is_active"])
 
         return Response({"message": "Book deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    
+
+class BorrowCreateView(APIView):
+
+    @extend_schema(
+        summary="Borrow a book",
+        description="Borrow a book for a fixed duration. Author cannot borrow own book.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the book",
+                required=True,
+            ),
+        ],
+        responses=BorrowSerializer,
+    )
+    def post(self, request, id):
+
+        service = BorrowService()
+
+        try:
+            borrow = service.borrow_book(
+                user=request.user,
+                book_id=id,
+            )
+        except DjangoValidationError as e:
+            raise DRFValidationError(e.message)
+
+        return Response(
+            BorrowSerializer(borrow).data,
+            status=status.HTTP_201_CREATED,
+        )
+    
+
+class ReviewCreateView(APIView):
+
+    @extend_schema(
+        summary="Add review to a book",
+        description="Only borrowers can review. Uploader cannot review own book.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the book",
+                required=True,
+            ),
+        ],
+        request=ReviewCreateSerializer,
+        responses=ReviewCreateSerializer,
+    )
+    def post(self, request, id):
+
+        serializer = ReviewCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        service = ReviewService()
+
+        try:
+            review = service.create_review(
+                user=request.user,
+                book_id=id,
+                **serializer.validated_data,
+            )
+        except DjangoValidationError as e:
+            raise DRFValidationError(e.message)
+
+        # Trigger async sentiment generation after commit
+        transaction.on_commit(
+            lambda: generate_review_sentiment_task.delay(str(review.id))
+        )
+
+        return Response(
+            ReviewCreateSerializer(review).data,
+            status=status.HTTP_201_CREATED,
+        )

@@ -45,7 +45,7 @@ class AzureOpenAIClient(BaseLLM):
             messages=[
                 {
                     "role": "system",
-                    "content": "Return only a sentiment score between -1 and 1."
+                    "content": "Return only a sentiment score between -1, 0, and 1."
                 },
                 {
                     "role": "user",

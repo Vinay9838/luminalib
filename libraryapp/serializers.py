@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Book
+from .models import Book, Borrow, Review
 
 
 class BookUploadSerializer(serializers.ModelSerializer):
@@ -66,4 +66,31 @@ class BookUpdateSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+    
+
+class BorrowSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Borrow
+        fields = [
+            "id",
+            "book",
+            "borrowed_at",
+            "expires_at",
+        ]
+
+
+class ReviewCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Review
+        fields = ["rating", "comment"]
+
+    def validate_rating(self, value):
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError(
+                "Rating must be between 1 and 5."
+            )
+        return value
+
 
