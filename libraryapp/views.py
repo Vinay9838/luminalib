@@ -1,11 +1,15 @@
 from django.db import transaction
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser, FormParser
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
-from libraryapp.serializers import BookUploadSerializer
+
+from libraryapp.models import Book
+from libraryapp.serializers import BookUploadSerializer, BookListSerializer, BookDetailSerializer, BookUpdateSerializer
 from libraryapp.services import BookService
 from libraryapp.tasks import generate_book_summary_task
 
@@ -16,7 +20,6 @@ class BookUploadView(APIView):
 
     @extend_schema(
         summary="Upload a new book",
-        tags=["Books"],
         description="Upload a PDF or TXT book. Summary is generated asynchronously.",
         request=BookUploadSerializer,
         responses={201: BookUploadSerializer},
@@ -42,3 +45,130 @@ class BookUploadView(APIView):
             BookUploadSerializer(book).data,
             status=status.HTTP_201_CREATED,
         )
+    
+
+class BookListView(ListAPIView):
+
+    serializer_class = BookListSerializer
+
+    @extend_schema(
+        summary="List all active books",
+        tags=["Books"],
+        description="Returns paginated list of active books. Supports filtering by author and title.",
+        parameters=[
+            OpenApiParameter(
+                name="author",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter books by author (partial match).",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="title",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter books by title (partial match).",
+                required=False,
+            ),
+        ],
+        responses=BookListSerializer(many=True),
+    )
+    def get_queryset(self):
+        queryset = Book.objects.filter(is_active=True)
+
+        author = self.request.query_params.get("author")
+        title = self.request.query_params.get("title")
+
+        if author:
+            queryset = queryset.filter(author__icontains=author)
+
+        if title:
+            queryset = queryset.filter(title__icontains=title)
+
+        return queryset.order_by("-created_at")
+    
+
+class BookDetailView(RetrieveAPIView):
+
+    queryset = Book.objects.filter(is_active=True)
+    serializer_class = BookDetailSerializer
+    lookup_field = "id"
+
+    @extend_schema(
+        summary="Retrieve book details",
+        description="Get detailed information of a specific book by UUID.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the book",
+                required=True,
+            ),
+        ],
+        responses=BookDetailSerializer,
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+
+class BookUpdateView(UpdateAPIView):
+
+    queryset = Book.objects.filter(is_active=True)
+    serializer_class = BookUpdateSerializer
+    lookup_field = "id"
+    http_method_names = ["put"]
+
+    @extend_schema(
+        summary="Update a book",
+        description="Only the uploader can update the book details.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the book",
+                required=True,
+            ),
+        ],
+        request=BookUpdateSerializer,
+        responses=BookDetailSerializer,
+    )
+    def put(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+    
+
+class BookDeleteView(APIView):
+
+    @extend_schema(
+        summary="Delete a book",
+        description="Soft delete a book. Only the uploader can delete it.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the book",
+                required=True,
+            ),
+        ],
+        responses={
+            204: None,
+            403: None,
+            404: None,
+        },
+    )
+    def delete(self, request, id):
+
+        try:
+            book = Book.objects.get(id=id, is_active=True)
+        except Book.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        if book.uploaded_by != request.user:
+            raise PermissionDenied("You are not allowed to delete this book.")
+
+        book.is_active = False
+        book.save(update_fields=["is_active"])
+
+        return Response({"message": "Book deleted successfully."}, status=status.HTTP_204_NO_CONTENT)

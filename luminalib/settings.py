@@ -183,6 +183,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 
@@ -213,6 +215,14 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_DEFAULT_QUEUE = 'celery.luminalib.default'
 CELERY_TASK_CREATE_MISSING_QUEUES = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# LLM settings
+LLM_PROVIDER = "azure"
+
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_VERSION = "2024-02-15-preview"
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
 
 
 
