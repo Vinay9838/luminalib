@@ -56,3 +56,31 @@ class AzureOpenAIClient(BaseLLM):
         )
 
         return float(response.choices[0].message.content.strip())
+    
+    
+    def generate_review_consensus(self, review_text: str) -> str:
+        logger.info("Generating review consensus using Azure OpenAI")
+
+        response = self.client.chat.completions.create(
+            model=self.deployment_name,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert analyst summarizing user feedback. "
+                        "Provide a concise, structured summary of overall reader sentiment, "
+                        "highlighting common praises and criticisms."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Analyze the following user reviews and produce a consensus summary:\n\n"
+                        f"{review_text}"
+                    ),
+                },
+            ],
+            temperature=0.4,
+        )
+
+        return response.choices[0].message.content.strip()

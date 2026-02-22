@@ -25,6 +25,8 @@ class Book(models.Model):
 
     summary = models.TextField(blank=True)
     sentiment_score = models.FloatField(null=True, blank=True)
+    review_consensus = models.TextField(blank=True)
+    review_consensus_updated_at = models.DateTimeField(null=True, blank=True)
 
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

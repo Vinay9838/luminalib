@@ -99,3 +99,10 @@ class RequestStatusSerializer(serializers.Serializer):
     request_status = serializers.CharField()
     request_progress = serializers.FloatField()
 
+
+class BookAnalysisSerializer(serializers.Serializer):
+    book_id = serializers.UUIDField()
+    average_rating = serializers.FloatField(allow_null=True)
+    total_reviews = serializers.IntegerField()
+    review_consensus = serializers.CharField(allow_blank=True)
+    consensus_last_updated = serializers.DateTimeField(allow_null=True)

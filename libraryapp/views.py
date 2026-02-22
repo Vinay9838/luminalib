@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.response import Response
@@ -7,10 +6,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Avg, Count
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 
-from libraryapp.models import Book
+from libraryapp.models import Book, Review
 from libraryapp.serializers import (
     BookUploadSerializer, 
     BookListSerializer, 
@@ -18,7 +18,8 @@ from libraryapp.serializers import (
     BookUpdateSerializer,
     BorrowSerializer,
     ReviewCreateSerializer,
-    RequestStatusSerializer
+    RequestStatusSerializer,
+    BookAnalysisSerializer
 )
 from libraryapp.services import BookService, BorrowService, ReviewService
 from libraryapp.task_service import TaskService
@@ -217,6 +218,40 @@ class BorrowCreateView(APIView):
         )
     
 
+class BorrowReturnView(APIView):
+
+    @extend_schema(
+        summary="Return a borrowed book",
+        description="Return a previously borrowed book. Only active borrow can be returned.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the book",
+                required=True,
+            ),
+        ],
+        responses=BorrowSerializer,
+    )
+    def post(self, request, id):
+
+        service = BorrowService()
+
+        try:
+            borrow = service.return_book(
+                user=request.user,
+                book_id=id,
+            )
+        except DjangoValidationError as e:
+            raise DRFValidationError(e.message)
+
+        return Response(
+            BorrowSerializer(borrow).data,
+            status=status.HTTP_200_OK,
+        )
+    
+
 class ReviewCreateView(APIView):
 
     @extend_schema(
@@ -251,7 +286,7 @@ class ReviewCreateView(APIView):
             raise DRFValidationError(e.message)
 
         # Trigger async sentiment generation after commit
-        task = generate_review_sentiment_task.delay(str(review.id))
+        task = generate_review_sentiment_task.delay(str(review.id), str(review.book.id))
         
 
         return Response(
@@ -291,3 +326,41 @@ class RequestProgressView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+    
+class BookAnalysisView(APIView):
+
+    @extend_schema(
+        summary="Get aggregated review analysis",
+        description="Returns AI-generated consensus and review statistics for a book.",
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the book",
+                required=True,
+            ),
+        ],
+        responses=BookAnalysisSerializer,
+    )
+    def get(self, request, id):
+
+        try:
+            book = Book.objects.get(id=id, is_active=True)
+        except Book.DoesNotExist:
+            raise DRFValidationError("Book not found.")
+
+        stats = Review.objects.filter(book=book).aggregate(
+            average_rating=Avg("rating"),
+            total_reviews=Count("id"),
+        )
+
+        data = {
+            "book_id": book.id,
+            "average_rating": stats["average_rating"],
+            "total_reviews": stats["total_reviews"],
+            "review_consensus": book.review_consensus,
+            "consensus_last_updated": book.review_consensus_updated_at,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)

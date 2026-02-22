@@ -111,6 +111,25 @@ class BorrowService:
 
         return borrow
     
+    def return_book(self, *, user, book_id):
+
+        try:
+            borrow = Borrow.objects.get(
+                user=user,
+                book_id=book_id,
+                is_active=True,
+            )
+        except Borrow.DoesNotExist:
+            raise ValidationError(
+                "No active borrow found for this book."
+            )
+
+        borrow.is_active = False
+        borrow.returned_at = timezone.now()
+        borrow.save(update_fields=["is_active", "returned_at"])
+
+        return borrow
+    
 
 class ReviewService:
 
@@ -163,3 +182,35 @@ class ReviewService:
 
         review.sentiment_score = sentiment
         review.save(update_fields=["sentiment_score"])
+
+    def generate_review_consensus(self, book_id: str):
+
+        try:
+            book = Book.objects.get(id=book_id, is_active=True)
+        except Book.DoesNotExist:
+            return
+
+        reviews = Review.objects.filter(book=book)
+
+        if not reviews.exists():
+            book.review_consensus = ""
+            book.review_consensus_updated_at = timezone.now()
+            book.save(update_fields=["review_consensus", "review_consensus_updated_at"])
+            return
+
+        review_texts = [
+            f"Rating: {r.rating}. Comment: {r.comment}"
+            for r in reviews if r.comment
+        ]
+
+        if not review_texts:
+            return
+
+        combined_reviews = "\n".join(review_texts)
+
+        llm = get_llm_client()
+        consensus = llm.generate_review_consensus(combined_reviews)
+
+        book.review_consensus = consensus
+        book.review_consensus_updated_at = timezone.now()
+        book.save(update_fields=["review_consensus", "review_consensus_updated_at"])
