@@ -92,5 +92,10 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
                 "Rating must be between 1 and 5."
             )
         return value
+    
 
+class RequestStatusSerializer(serializers.Serializer):
+    request_id = serializers.CharField()
+    request_status = serializers.CharField()
+    request_progress = serializers.FloatField()
 

@@ -17,9 +17,11 @@ from libraryapp.serializers import (
     BookDetailSerializer, 
     BookUpdateSerializer,
     BorrowSerializer,
-    ReviewCreateSerializer
+    ReviewCreateSerializer,
+    RequestStatusSerializer
 )
 from libraryapp.services import BookService, BorrowService, ReviewService
+from libraryapp.task_service import TaskService
 from libraryapp.tasks import generate_book_summary_task, generate_review_sentiment_task
 
 
@@ -45,13 +47,11 @@ class BookUploadView(APIView):
             **serializer.validated_data,
         )
 
-        # Ensure Celery runs after DB commit
-        transaction.on_commit(
-            lambda: generate_book_summary_task.delay(str(book.id))
-        )
+        task = generate_book_summary_task.delay(str(book.id))
+        
 
         return Response(
-            BookUploadSerializer(book).data,
+            {'book': BookUploadSerializer(book).data, 'request_id': task.id},
             status=status.HTTP_201_CREATED,
         )
     
@@ -251,11 +251,43 @@ class ReviewCreateView(APIView):
             raise DRFValidationError(e.message)
 
         # Trigger async sentiment generation after commit
-        transaction.on_commit(
-            lambda: generate_review_sentiment_task.delay(str(review.id))
-        )
+        task = generate_review_sentiment_task.delay(str(review.id))
+        
 
         return Response(
-            ReviewCreateSerializer(review).data,
+            {
+                "request_id": task.id,
+                "review": ReviewCreateSerializer(review).data,
+            },
             status=status.HTTP_201_CREATED,
+        )
+    
+
+class RequestProgressView(APIView):
+
+    @extend_schema(
+        summary="Check progress of an asynchronous task",
+        description="Get the status and progress of a background task using its request ID.",
+        parameters=[
+            OpenApiParameter(
+                name="request_id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description="UUID of the asynchronous task request",
+                required=True,
+            ),
+        ],
+        responses=RequestStatusSerializer,
+    )
+    def get(self, request, request_id):
+        service = TaskService(request_id)
+        status_str, progress = service.get_progress_info()
+
+        return Response(
+            {
+                "request_id": request_id,
+                "request_status": status_str,
+                "request_progress": progress,
+            },
+            status=status.HTTP_200_OK,
         )

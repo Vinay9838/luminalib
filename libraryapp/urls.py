@@ -7,7 +7,8 @@ from .views import (
     BookUpdateView, 
     BookDeleteView, 
     BorrowCreateView,
-    ReviewCreateView
+    ReviewCreateView,
+    RequestProgressView
 )
 
 app_name = 'libraryapp'
@@ -19,4 +20,5 @@ urlpatterns = [
     path("books/<uuid:id>/delete/", BookDeleteView.as_view(), name="book-delete"),
     path("books/<uuid:id>/borrow/", BorrowCreateView.as_view(), name="book-borrow"),
     path("books/<uuid:id>/review/", ReviewCreateView.as_view(), name="book-review"),
+    path('requests/<uuid:request_id>/progress/', RequestProgressView.as_view(), name='request-progress'),
 ]

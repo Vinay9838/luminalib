@@ -5,10 +5,12 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
-from libraryapp.models import Book, Borrow, Review
 from lib.llm.factory import get_llm_client
 from lib.llm.token_utils import chunk_text
 from lib.extraction.utils import extract_text
+from libraryapp.models import Book, Borrow, Review
+from libraryapp.task_service import TaskService
+
 
 logger = logging.getLogger(__name__)
 
@@ -42,21 +44,28 @@ class BookService:
     
     def generate_summary(self, book_id: str):
         logger.info(f"Summary generation for book ID {book_id} started...")
+        TaskService.update_progress(10, 100)
         book = Book.objects.get(id=book_id)
         if book.summary:
             logger.info(f"Summary already exists for book ID {book_id}")
             return
 
-        raw_text = extract_text(book.file.path)
+        raw_text = extract_text(book.file.path, TaskService.update_progress)
 
         llm = get_llm_client()
         summaries = []
+        current_progress = 30
         for chunk in chunk_text(raw_text, max_tokens=20000):
+            current_progress += 10  # Simulate progress increase for each chunk
+            if current_progress > 80:
+                current_progress += 1  # Slow down progress as we approach the end
+            TaskService.update_progress(current_progress, 100)  # Progress update for each chunk
             summary = llm.generate_summary(chunk)
             summaries.append(summary)
 
         combined_text = "\n\n".join(summaries)
         final_summary = llm.generate_summary(combined_text)
+        TaskService.update_progress(100, 100)  # Final progress update
 
         book.summary = final_summary
         book.save(update_fields=["summary"])
