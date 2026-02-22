@@ -19,7 +19,8 @@ from libraryapp.serializers import (
     BorrowSerializer,
     ReviewCreateSerializer,
     RequestStatusSerializer,
-    BookAnalysisSerializer
+    BookAnalysisSerializer,
+    BoookSerializer,
 )
 from libraryapp.services import BookService, BorrowService, ReviewService
 from libraryapp.task_service import TaskService
@@ -189,15 +190,7 @@ class BorrowCreateView(APIView):
     @extend_schema(
         summary="Borrow a book",
         description="Borrow a book for a fixed duration. Author cannot borrow own book.",
-        parameters=[
-            OpenApiParameter(
-                name="id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
-                description="UUID of the book",
-                required=True,
-            ),
-        ],
+        request=BoookSerializer,
         responses=BorrowSerializer,
     )
     def post(self, request, id):
@@ -223,15 +216,7 @@ class BorrowReturnView(APIView):
     @extend_schema(
         summary="Return a borrowed book",
         description="Return a previously borrowed book. Only active borrow can be returned.",
-        parameters=[
-            OpenApiParameter(
-                name="id",
-                type=OpenApiTypes.UUID,
-                location=OpenApiParameter.PATH,
-                description="UUID of the book",
-                required=True,
-            ),
-        ],
+        request=BoookSerializer,
         responses=BorrowSerializer,
     )
     def post(self, request, id):

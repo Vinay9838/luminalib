@@ -217,12 +217,52 @@ CELERY_TASK_CREATE_MISSING_QUEUES = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # LLM settings
-LLM_PROVIDER = "azure"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER").lower()
 
+if not LLM_PROVIDER:
+    raise RuntimeError("LLM_PROVIDER must be set (azure or ollama).")
+
+# Azure OpenAI settings
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_API_VERSION = "2024-02-15-preview"
 AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+
+# Ollama settings
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+
+def require_env_vars(provider: str, required: dict):
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise RuntimeError(
+            f"Missing required environment variables for {provider}: {', '.join(missing)}"
+        )
+
+
+if LLM_PROVIDER == "azure":
+    require_env_vars(
+        "azure",
+        {
+            "AZURE_OPENAI_API_KEY": AZURE_OPENAI_API_KEY,
+            "AZURE_OPENAI_ENDPOINT": AZURE_OPENAI_ENDPOINT,
+            "AZURE_OPENAI_DEPLOYMENT_NAME": AZURE_OPENAI_DEPLOYMENT_NAME,
+        },
+    )
+
+elif LLM_PROVIDER == "ollama":
+    require_env_vars(
+        "ollama",
+        {
+            "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
+            "OLLAMA_MODEL": OLLAMA_MODEL,
+        },
+    )
+
+else:
+    raise RuntimeError(
+        f"Unsupported LLM_PROVIDER: {LLM_PROVIDER}"
+    )
 
 
 

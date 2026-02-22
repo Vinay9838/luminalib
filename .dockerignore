@@ -1,0 +1,48 @@
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+.venv/
+venv/
+
+# Ignore data files
+/data/
+
+# Ignore logs
+*.log
+
+# Ignore Jupyter notebooks
+*.ipynb
+
+# Ignore local settings
+*.env
+.env
+
+# Ignore build artifacts
+dist/
+build/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Docker files
+.docker/
+
+# Ignore test outputs
+*.pytest_cache/
+
+# Ignore coverage reports
+htmlcov/
+.coverage
+
+# Ignore temporary files
+*.tmp
+*.swp
+*.bak
+
+# Ignore node modules
+node_modules/

@@ -79,6 +79,9 @@ class BorrowSerializer(serializers.ModelSerializer):
             "expires_at",
         ]
 
+class BoookSerializer(serializers.Serializer):
+    book_id = serializers.UUIDField()
+    
 
 class ReviewCreateSerializer(serializers.ModelSerializer):
 

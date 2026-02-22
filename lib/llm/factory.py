@@ -1,5 +1,7 @@
 from django.conf import settings
+
 from .azure_client import AzureOpenAIClient
+from .ollama_client import OllamaClient
 
 
 
@@ -9,7 +11,7 @@ def get_llm_client():
     if provider == "azure":
         return AzureOpenAIClient()
 
-    # elif provider == "local":
-    #     return LocalLLMClient()
+    if provider == "ollama":
+        return OllamaClient()
 
     raise ValueError("Invalid LLM provider configured.")

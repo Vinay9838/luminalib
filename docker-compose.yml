@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+
   postgres:
     image: postgres:16
     container_name: luminalib-postgres
@@ -14,10 +15,79 @@ services:
     volumes:
       - luminalib_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U luminalib_user"]
+      test: ["CMD-SHELL", "pg_isready -U luminalib_user -d luminalib"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: luminalib-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama
+    container_name: luminalib-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: >
+      sh -c "
+      ollama serve &
+      sleep 8 &&
+      ollama pull llama3 &&
+      wait
+      "
+
+  api:
+    build: .
+    container_name: luminalib-api
+    restart: unless-stopped
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      gunicorn luminalib.wsgi:application --bind 0.0.0.0:8000
+      "
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    volumes:
+      - luminalib_media:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  worker:
+    build: .
+    container_name: luminalib-worker
+    restart: unless-stopped
+    command: celery -A luminalib worker -l info
+    env_file:
+      - .env.docker
+    volumes:
+      - luminalib_media:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
 volumes:
   luminalib_postgres_data:
+  ollama_data:
+  luminalib_media:

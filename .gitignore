@@ -56,4 +56,5 @@ htmlcov/
 *.swo
 
 # Ignore data files
-/data/
+/data/*
+!/data/.gitkeep
