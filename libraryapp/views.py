@@ -193,7 +193,7 @@ class BorrowCreateView(APIView):
         request=BoookSerializer,
         responses=BorrowSerializer,
     )
-    def post(self, request, id):
+    def post(self, request):
 
         service = BorrowService()
 
@@ -219,7 +219,7 @@ class BorrowReturnView(APIView):
         request=BoookSerializer,
         responses=BorrowSerializer,
     )
-    def post(self, request, id):
+    def post(self, request):
 
         service = BorrowService()
 

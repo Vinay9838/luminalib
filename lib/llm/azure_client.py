@@ -26,11 +26,21 @@ class AzureOpenAIClient(BaseLLM):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a professional book summarizer."
+                    "content": (
+                        "You are a professional book summarizer. "
+                        "Return ONLY the final summary text. "
+                        "Do NOT include any introductory phrases, explanations, or comments. "
+                        "Do NOT say things like 'Here is the summary'. "
+                        "Just output the summary directly."
+                    )
                 },
                 {
                     "role": "user",
-                    "content": f"Summarize the following text in 300 words:\n\n{text}"
+                    "content": (
+                        "Summarize the following text in approximately 300 words. "
+                        "Return only the summary content.\n\n"
+                        f"{text}"
+                    )
                 }
             ],
             temperature=0.5,
@@ -45,11 +55,23 @@ class AzureOpenAIClient(BaseLLM):
             messages=[
                 {
                     "role": "system",
-                    "content": "Return only a sentiment score between -1, 0, and 1."
+                    "content": (
+                        "You are a sentiment analysis engine. "
+                        "Return ONLY a single numeric value between -1 and 1. "
+                        "-1 = very negative, "
+                        "0 = neutral, "
+                        "1 = very positive. "
+                        "Do NOT return explanations. "
+                        "Do NOT return text. "
+                        "Return ONLY the numeric value."
+                    )
                 },
                 {
                     "role": "user",
-                    "content": f"Analyze sentiment of this text:\n{text}"
+                    "content": (
+                        "Analyze the sentiment of the following text:\n\n"
+                        f"{text}"
+                    )
                 }
             ],
             temperature=0,
@@ -68,17 +90,24 @@ class AzureOpenAIClient(BaseLLM):
                     "role": "system",
                     "content": (
                         "You are an expert analyst summarizing user feedback. "
-                        "Provide a concise, structured summary of overall reader sentiment, "
-                        "highlighting common praises and criticisms."
-                    ),
+                        "Analyze reviews and return ONLY a JSON object with the following structure:\n\n"
+                        "{\n"
+                        '  "overall_sentiment": "positive | neutral | negative",\n'
+                        '  "key_praises": ["point1", "point2", "point3"],\n'
+                        '  "key_criticisms": ["point1", "point2", "point3"]\n'
+                        "}\n\n"
+                        "Do NOT include explanations. "
+                        "Do NOT include extra text. "
+                        "Return ONLY valid JSON."
+                    )
                 },
                 {
                     "role": "user",
                     "content": (
                         "Analyze the following user reviews and produce a consensus summary:\n\n"
                         f"{review_text}"
-                    ),
-                },
+                    )
+                }
             ],
             temperature=0.4,
         )

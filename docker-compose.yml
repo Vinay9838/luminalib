@@ -43,7 +43,9 @@ services:
       sh -c "
       ollama serve &
       sleep 8 &&
-      ollama pull llama3 &&
+      ollama pull phi3 &&
+      sleep 5 &&
+      ollama run phi3 'hello' >/dev/null 2>&1 &&
       wait
       "
 
